@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>記憶配對遊戲</title>
+    <title>LuLu 記憶對對碰</title> <!-- 遊戲名稱改為 LuLu 記憶對對碰 -->
     <style>
         .game-container {
             width: 700px;
@@ -59,7 +59,7 @@
 <body>
     <div class="game-container">
         <div id="score">得分: 0</div>
-        <div id="timer">剩餘時間: 30</div>
+        <div id="timer">剩餘時間: 45</div>
         <div class="grid" id="gameGrid"></div>
         <button onclick="startGame()">開始遊戲</button>
     </div>
@@ -69,7 +69,7 @@
         let cards = [];
         let flippedCards = [];
         let score = 0;
-        let timeLeft = 30;
+        let timeLeft = 45;
         let timer;
         let isChecking = false;
 
@@ -127,9 +127,11 @@
                     isChecking = false;
                     if (score === 8) {
                         clearInterval(timer);
-                        setTimeout(() => alert('恭喜你贏了！'), 500);
+                        setTimeout(() => {
+                            alert('恭喜你贏了！你真是個LuLu 達人');
+                        }, 500);
                     }
-                }, 700); // 匹配後停留 0.7 秒再隱藏
+                }, 700);
             } else {
                 setTimeout(() => {
                     card1.classList.remove('flipped');
@@ -146,7 +148,8 @@
                 document.getElementById('timer').textContent = `剩餘時間: ${timeLeft}`;
                 if (timeLeft <= 0) {
                     clearInterval(timer);
-                    alert(`遊戲結束！得分: ${score}`);
+                    let message = score <= 4 ? '你真是一個不合格的LuLu 粉絲' : '你真是個LuLu 達人';
+                    alert(`遊戲結束！得分: ${score}\n${message}`);
                     gameGrid.innerHTML = '';
                 }
             }, 1000);
@@ -157,7 +160,7 @@
             cards = [];
             flippedCards = [];
             score = 0;
-            timeLeft = 30;
+            timeLeft = 45;
             isChecking = false;
             document.getElementById('score').textContent = `得分: ${score}`;
             document.getElementById('timer').textContent = `剩餘時間: ${timeLeft}`;
