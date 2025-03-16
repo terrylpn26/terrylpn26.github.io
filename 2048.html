@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>2048 遊戲</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #faf8ef;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+        }
+        .game-container {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #gameCanvas {
+            background: #bbada0;
+            border-radius: 10px;
+            padding: 15px;
+            width: 135vw;
+            max-width: 600px;
+            height: 135vw;
+            max-height: 600px;
+        }
+        #score {
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+        #undoButton {
+            font-size: 24px;
+            padding: 10px 20px;
+            margin-top: 10px; /* 調整至版面正下方 */
+            background-color: #8f7a66;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #undoButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div id="score">得分: 0</div>
+        <canvas id="gameCanvas"></canvas>
+        <button id="undoButton" disabled>回到上一步</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const undoButton = document.getElementById('undoButton');
+
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        console.log(`畫布大小: ${canvas.width}x${canvas.height}`);
+
+        const gridSize = 5;
+        const tileSize = (canvas.width - (gridSize + 1) * 15) / gridSize;
+        const gap = 15;
+        let grid = [];
+        let score = 0;
+        let gameOver = false;
+        let previousState = null;
+
+        // 預載圖片
+        const tileImages = {};
+        const tileValues = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+        let imagesLoaded = 0;
+
+        tileValues.forEach(value => {
+            tileImages[value] = new Image();
+            tileImages[value].src = `./${value}.jpg`; // 添加 "./" 明確當前目錄
+            console.log(`嘗試載入圖片: ${tileImages[value].src}`);
+            tileImages[value].onload = () => {
+                imagesLoaded++;
+                console.log(`圖片載入成功: ${value}.jpg (已載入 ${imagesLoaded}/${tileValues.length})`);
+                if (imagesLoaded === tileValues.length) {
+                    draw();
+                }
+            };
+            tileImages[value].onerror = () => {
+                console.error(`圖片載入失敗: ${value}.jpg - 請確認檔案是否存在於 ${window.location.href} 同一目錄，且名稱正確（小寫 .jpg）`);
+            };
+        });
+
+        // 初始化遊戲
+        function init() {
+            grid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+            addTile();
+            addTile();
+            previousState = null;
+            undoButton.disabled = true;
+            setTimeout(() => {
+                draw();
+                console.log('遊戲已初始化');
+            }, 1000); // 延長至 1 秒
+        }
+
+        // 添加新方塊
+        function addTile() {
+            let emptyTiles = [];
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j] === 0) emptyTiles.push({ x: i, y: j });
+                }
+            }
+            if (emptyTiles.length > 0) {
+                let { x, y } = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+                grid[x][y] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        // 儲存狀態
+        function saveState() {
+            previousState = {
+                grid: JSON.parse(JSON.stringify(grid)),
+                score: score
+            };
+            undoButton.disabled = false;
+        }
+
+        // 回到上一步
+        function undo() {
+            if (previousState) {
+                grid = JSON.parse(JSON.stringify(previousState.grid));
+                score = previousState.score;
+                scoreDisplay.textContent = `得分: ${score}`;
+                gameOver = false;
+                previousState = null;
+                undoButton.disabled = true;
+                draw();
+                console.log('已回到上一步');
+            }
+        }
+
+        // 繪製遊戲
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    let x = j * (tileSize + gap) + gap;
+                    let y = i * (tileSize + gap) + gap;
+                    if (grid[i][j] === 0) {
+                        ctx.fillStyle = '#cdc1b4';
+                        ctx.fillRect(x, y, tileSize, tileSize);
+                    } else {
+                        if (tileImages[grid[i][j]].complete && tileImages[grid[i][j]].naturalWidth > 0) {
+                            ctx.drawImage(tileImages[grid[i][j]], x, y, tileSize, tileSize);
+                            ctx.fillStyle = 'black';
+                            ctx.font = `${tileSize / 4}px Arial`;
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(grid[i][j], x + tileSize - 5, y + tileSize - 5);
+                        } else {
+                            ctx.fillStyle = '#eee4da';
+                            ctx.fillRect(x, y, tileSize, tileSize);
+                            ctx.fillStyle = 'black';
+                            ctx.font = `${tileSize / 2}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(grid[i][j], x + tileSize / 2, y + tileSize / 2);
+                            console.log(`圖片未載入，使用數字顯示: ${grid[i][j]}`);
+                        }
+                    }
+                }
+            }
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '60px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('遊戲結束', canvas.width / 2, canvas.height / 2 - 30);
+                ctx.font = '30px Arial';
+                ctx.fillText('點擊或按 R 重新開始', canvas.width / 2, canvas.height / 2 + 30);
+            }
+        }
+
+        // 移動並合併
+        function move(direction) {
+            if (gameOver) return;
+            saveState();
+            let moved = false;
+            let newGrid = JSON.parse(JSON.stringify(grid));
+
+            if (direction === 'left') {
+                for (let i = 0; i < gridSize; i++) {
+                    let row = grid[i].filter(val => val !== 0);
+                    for (let j = 0; j < row.length - 1; j++) {
+                        if (row[j] === row[j + 1]) {
+                            row[j] *= 2;
+                            score += row[j];
+                            row.splice(j + 1, 1);
+                            moved = true;
+                        }
+                    }
+                    while (row.length < gridSize) row.push(0);
+                    if (JSON.stringify(grid[i]) !== JSON.stringify(row)) moved = true;
+                    newGrid[i] = row;
+                }
+            } else if (direction === 'right') {
+                for (let i = 0; i < gridSize; i++) {
+                    let row = grid[i].filter(val => val !== 0);
+                    for (let j = row.length - 1; j > 0; j--) {
+                        if (row[j] === row[j - 1]) {
+                            row[j] *= 2;
+                            score += row[j];
+                            row.splice(j - 1, 1);
+                            moved = true;
+                        }
+                    }
+                    while (row.length < gridSize) row.unshift(0);
+                    if (JSON.stringify(grid[i]) !== JSON.stringify(row)) moved = true;
+                    newGrid[i] = row;
+                }
+            } else if (direction === 'up') {
+                for (let j = 0; j < gridSize; j++) {
+                    let col = [];
+                    for (let i = 0; i < gridSize; i++) if (grid[i][j] !== 0) col.push(grid[i][j]);
+                    for (let k = 0; k < col.length - 1; k++) {
+                        if (col[k] === col[k + 1]) {
+                            col[k] *= 2;
+                            score += col[k];
+                            col.splice(k + 1, 1);
+                            moved = true;
+                        }
+                    }
+                    while (col.length < gridSize) col.push(0);
+                    for (let i = 0; i < gridSize; i++) {
+                        if (newGrid[i][j] !== col[i]) moved = true;
+                        newGrid[i][j] = col[i];
+                    }
+                }
+            } else if (direction === 'down') {
+                for (let j = 0; j < gridSize; j++) {
+                    let col = [];
+                    for (let i = 0; i < gridSize; i++) if (grid[i][j] !== 0) col.push(grid[i][j]);
+                    for (let k = col.length - 1; k > 0; k--) {
+                        if (col[k] === col[k - 1]) {
+                            col[k] *= 2;
+                            score += col[k];
+                            col.splice(k - 1, 1);
+                            moved = true;
+                        }
+                    }
+                    while (col.length < gridSize) col.unshift(0);
+                    for (let i = 0; i < gridSize; i++) {
+                        if (newGrid[i][j] !== col[i]) moved = true;
+                        newGrid[i][j] = col[i];
+                    }
+                }
+            }
+
+            if (moved) {
+                grid = newGrid;
+                addTile();
+                scoreDisplay.textContent = `得分: ${score}`;
+                checkGameOver();
+                draw();
+                console.log(`移動: ${direction}, 分數: ${score}`);
+            } else {
+                previousState = null;
+                undoButton.disabled = true;
+            }
+        }
+
+        // 檢查遊戲結束
+        function checkGameOver() {
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j] === 0) return;
+                    if (i < gridSize - 1 && grid[i][j] === grid[i + 1][j]) return;
+                    if (j < gridSize - 1 && grid[i][j] === grid[i][j + 1]) return;
+                }
+            }
+            gameOver = true;
+            console.log('遊戲結束');
+        }
+
+        // 觸摸控制（手機）
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameOver) {
+                init();
+                gameOver = false;
+                score = 0;
+                scoreDisplay.textContent = `得分: ${score}`;
+                draw();
+                return;
+            }
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            console.log(`觸摸開始: (${touchStartX}, ${touchStartY})`);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            touchEndX = e.touches[0].clientX;
+            touchEndY = e.touches[0].clientY;
+            console.log(`觸摸移動: (${touchEndX}, ${touchEndY})`);
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+
+            console.log(`滑動結束: dx=${dx}, dy=${dy}`);
+
+            if (absDx > absDy && absDx > 30) {
+                if (dx > 0) move('right');
+                else move('left');
+            } else if (absDy > absDx && absDy > 30) {
+                if (dy > 0) move('down');
+                else move('up');
+            }
+        });
+
+        // 鍵盤控制（PC）
+        document.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            if (gameOver && e.key === 'r') {
+                init();
+                gameOver = false;
+                score = 0;
+                scoreDisplay.textContent = `得分: ${score}`;
+                draw();
+                return;
+            }
+            if (!gameOver) {
+                switch (e.key) {
+                    case 'ArrowUp':
+                        move('up');
+                        break;
+                    case 'ArrowDown':
+                        move('down');
+                        break;
+                    case 'ArrowLeft':
+                        move('left');
+                        break;
+                    case 'ArrowRight':
+                        move('right');
+                        break;
+                }
+            }
+        });
+
+        // 回到上一步按鈕
+        undoButton.addEventListener('click', () => {
+            undo();
+        });
+
+        // 啟動遊戲
+        try {
+            init();
+        } catch (error) {
+            console.error('初始化失敗:', error);
+        }
+    </script>
+</body>
+</html>
